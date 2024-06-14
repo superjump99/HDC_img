@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .header {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 20px;
+            display: inline-block;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .image-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin-top: 20px;
+            flex-wrap: nowrap; /* Prevent wrapping */
+            border-top: 2px solid #ddd; /* Top border to separate from progress bar */
+            padding-top: 20px; /* Padding to create space from the border */
+        }
+        .image-wrapper {
+            overflow: hidden;
+            display: inline-block;
+            position: relative;
+            width: 30%; /* Default width */
+            height: 300px; /* Default height */
+            min-width: 300px; /* Minimum width */
+            min-height: 300px; /* Minimum height */
+            border: 2px solid black;
+            resize: both;
+            margin: 10px; /* Add some space around each image wrapper */
+        }
+        .image-wrapper img {
+            transition: transform 0.2s ease, left 0.2s ease, top 0.2s ease;
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Ensure image fits inside the wrapper without being cropped */
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: grab;
+        }
+        .image-wrapper img:active {
+            cursor: grabbing;
+        }
+        .zoom-level {
+            position: absolute;
+            bottom: 5px; /* Move above the wrapper */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 14px;
+            white-space: nowrap; /* Prevent text from wrapping */
+        }
+        .control-buttons {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .control-buttons button, .control-buttons input {
+            font-size: 18px;
+            padding: 10px 20px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+        .control-buttons button:hover {
+            background-color: #45a049;
+        }
+        .control-buttons button:active {
+            transform: scale(0.95);
+        }
+        .image-count {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        .progress-bar-container {
+            width: 80%;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0 auto;
+            position: relative;
+        }
+        .progress-bar {
+            height: 30px;
+            background-color: #4CAF50;
+            width: 0;
+            transition: width 0.3s ease;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Image Viewer</h1>
+    </div>
+    <div class="control-buttons">
+        <button onclick="prevImage()">&#60; Prev</button>
+        <input type="number" id="imageNumber" value="1" min="1" onchange="jumpToImage()" />
+        <button onclick="nextImage()">Next &#62;</button>
+        <button onclick="resetSizes()">Reset Sizes</button>
+    </div>
+    <div class="image-count">
+        <div class="progress-bar-container" id="progressBarContainer">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+    </div>
+    <div class="image-container" id="imageContainer">
+        <div class="image-wrapper" id="wrapperFrontLeft">
+            <img id="imgFrontLeft" src="/image/CAM_FRONT_LEFT/000001.jpg" alt="CAM_FRONT_LEFT" data-scale="1">
+            <div class="zoom-level" id="zoomFrontLeft">Zoom Level: 100%</div>
+        </div>
+        <div class="image-wrapper" id="wrapperFront">
+            <img id="imgFront" src="/image/CAM_FRONT/000001.jpg" alt="CAM_FRONT" data-scale="1">
+            <div class="zoom-level" id="zoomFront">Zoom Level: 100%</div>
+        </div>
+        <div class="image-wrapper" id="wrapperFrontRight">
+            <img id="imgFrontRight" src="/image/CAM_FRONT_RIGHT/000001.jpg" alt="CAM_FRONT_RIGHT" data-scale="1">
+            <div class="zoom-level" id="zoomFrontRight">Zoom Level: 100%</div>
+        </div>
+    </div>
+
+    <script>
+        let currentImageNumber = 1;
+        let totalImages = 0;
+        let isDraggingProgressBar = false;
+
+        // Initial sizes for resetting
+        const initialWidth = '30%';
+        const initialHeight = '300px';
+
+        async function fetchImageCount() {
+            const response = await fetch('/image_count');
+            const data = await response.json();
+            const maxCount = Math.max(...Object.values(data));
+            totalImages = maxCount;
+            updateProgressBar();
+        }
+
+        function updateProgressBar() {
+            const progressBar = document.getElementById('progressBar');
+            const progressPercentage = (currentImageNumber / totalImages) * 100;
+            progressBar.style.width = `${progressPercentage}%`;
+        }
+
+        function loadImages(imageNumber) {
+            const paths = [
+                { id: 'imgFrontLeft', path: 'CAM_FRONT_LEFT' },
+                { id: 'imgFront', path: 'CAM_FRONT' },
+                { id: 'imgFrontRight', path: 'CAM_FRONT_RIGHT' }
+            ];
+
+            paths.forEach(item => {
+                const imgElement = document.getElementById(item.id);
+                imgElement.src = `/image/${item.path}/${imageNumber}.jpg`;
+                imgElement.onload = () => {
+                    imgElement.style.transform = 'scale(1)';
+                    imgElement.style.left = '0';
+                    imgElement.style.top = '0';
+                    imgElement.setAttribute('data-scale', '1');
+                };
+            });
+
+            document.getElementById('imageNumber').value = parseInt(imageNumber, 10);
+            updateProgressBar();
+            addEventListeners();
+        }
+
+        function nextImage() {
+            if (currentImageNumber < totalImages) {
+                currentImageNumber++;
+                const paddedNumber = currentImageNumber.toString().padStart(6, '0');
+                loadImages(paddedNumber);
+            }
+        }
+
+        function prevImage() {
+            if (currentImageNumber > 1) {
+                currentImageNumber--;
+                const paddedNumber = currentImageNumber.toString().padStart(6, '0');
+                loadImages(paddedNumber);
+            }
+        }
+
+        function jumpToImage() {
+            const imageNumber = document.getElementById('imageNumber').value;
+            if (imageNumber >= 1 && imageNumber <= totalImages) {
+                currentImageNumber = imageNumber;
+                const paddedNumber = currentImageNumber.toString().padStart(6, '0');
+                loadImages(paddedNumber);
+            } else {
+                alert(`Please enter a number between 1 and ${totalImages}`);
+            }
+        }
+
+        function resetSizes() {
+            document.querySelectorAll('.image-wrapper').forEach(wrapper => {
+                wrapper.style.width = initialWidth;
+                wrapper.style.height = initialHeight;
+
+                const img = wrapper.querySelector('img');
+                img.style.transform = 'scale(1)';
+                img.style.left = '0';
+                img.style.top = '0';
+                img.setAttribute('data-scale', '1');
+
+                const zoomLevel = wrapper.querySelector('.zoom-level');
+                zoomLevel.textContent = 'Zoom Level: 100%';
+            });
+
+            adjustWrapperSizes();
+        }
+
+        function adjustWrapperSizes() {
+            const wrappers = document.querySelectorAll('.image-wrapper');
+            const containerWidth = document.getElementById('imageContainer').clientWidth;
+            const wrapperWidth = Math.max(containerWidth / wrappers.length - 20, 300); // Ensure minimum width
+
+            wrappers.forEach(wrapper => {
+                wrapper.style.width = `${wrapperWidth}px`;
+            });
+        }
+
+        function zoomImage(event) {
+            event.preventDefault();
+            const scaleAmount = 0.1;
+            const img = event.currentTarget;
+            let scale = parseFloat(img.getAttribute('data-scale')) || 1;
+
+            const rect = img.getBoundingClientRect();
+            const offsetX = event.clientX - rect.left;
+            const offsetY = event.clientY - rect.top;
+
+            const prevScale = scale;
+            if (event.deltaY < 0) {
+                scale += scaleAmount;
+            } else {
+                scale = Math.max(1, scale - scaleAmount);
+            }
+
+            const ratio = scale / prevScale;
+            const left = parseFloat(img.style.left || 0);
+            const top = parseFloat(img.style.top || 0);
+
+            img.style.left = `${left - (offsetX * (ratio - 1))}px`;
+            img.style.top = `${top - (offsetY * (ratio - 1))}px`;
+            img.style.transform = `scale(${scale})`;
+            img.setAttribute('data-scale', scale);
+
+            const zoomLevel = img.parentElement.querySelector('.zoom-level');
+            zoomLevel.textContent = `Zoom Level: ${Math.round(scale * 100)}%`;
+        }
+
+        function startDrag(event) {
+            event.preventDefault();
+            const img = event.currentTarget;
+            img.style.cursor = 'grabbing';
+            img.setAttribute('data-dragging', true);
+            img.setAttribute('data-startX', event.clientX);
+            img.setAttribute('data-startY', event.clientY);
+            img.setAttribute('data-offsetX', parseFloat(img.style.left) || 0);
+            img.setAttribute('data-offsetY', parseFloat(img.style.top) || 0);
+        }
+
+        function dragImage(event) {
+            const img = document.querySelector('.image-wrapper img[data-dragging="true"]');
+            if (img) {
+                const startX = parseFloat(img.getAttribute('data-startX'));
+                const startY = parseFloat(img.getAttribute('data-startY'));
+                const offsetX = parseFloat(img.getAttribute('data-offsetX'));
+                const offsetY = parseFloat(img.getAttribute('data-offsetY'));
+                const deltaX = event.clientX - startX;
+                const deltaY = event.clientY - startY;
+
+                img.style.left = `${offsetX + deltaX}px`;
+                img.style.top = `${offsetY + deltaY}px`;
+            }
+        }
+
+        function endDrag(event) {
+            const img = document.querySelector('.image-wrapper img[data-dragging="true"]');
+            if (img) {
+                img.style.cursor = 'grab';
+                img.removeAttribute('data-dragging');
+            }
+        }
+
+        function addEventListeners() {
+            document.querySelectorAll('.image-wrapper img').forEach(img => {
+                img.addEventListener('wheel', zoomImage);
+                img.addEventListener('mousedown', startDrag);
+            });
+
+            document.addEventListener('mousemove', dragImage);
+            document.addEventListener('mouseup', endDrag);
+
+            const progressBar = document.getElementById('progressBar');
+            const progressBarContainer = document.getElementById('progressBarContainer');
+
+            progressBarContainer.addEventListener('mousedown', startDragProgressBar);
+            document.addEventListener('mousemove', dragProgressBar);
+            document.addEventListener('mouseup', endDragProgressBar);
+
+            window.addEventListener('resize', adjustWrapperSizes);
+            adjustWrapperSizes(); // Adjust on initial load
+        }
+
+        function startDragProgressBar(event) {
+            isDraggingProgressBar = true;
+            updateProgressBarPosition(event);
+        }
+
+        function dragProgressBar(event) {
+            if (isDraggingProgressBar) {
+                updateProgressBarPosition(event);
+            }
+        }
+
+        function endDragProgressBar(event) {
+            if (isDraggingProgressBar) {
+                isDraggingProgressBar = false;
+                updateProgressBarPosition(event);
+            }
+        }
+
+        function updateProgressBarPosition(event) {
+            const progressBarContainer = document.getElementById('progressBarContainer');
+            const containerRect = progressBarContainer.getBoundingClientRect();
+            const offsetX = event.clientX - containerRect.left;
+            const progressPercentage = Math.min(Math.max(0, offsetX / containerRect.width), 1);
+            currentImageNumber = Math.round(progressPercentage * totalImages);
+            currentImageNumber = Math.max(1, Math.min(totalImages, currentImageNumber));
+            const paddedNumber = currentImageNumber.toString().padStart(6, '0');
+            loadImages(paddedNumber);
+        }
+
+        // Initial call to add event listeners and fetch image count
+        addEventListeners();
+        fetchImageCount();
+        loadImages(currentImageNumber.toString().padStart(6, '0'));
+    </script>
+</body>
+</html>

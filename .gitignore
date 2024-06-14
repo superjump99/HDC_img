@@ -1,0 +1,6 @@
+#.gitignore 파일
+*.idea
+
+# ignore all jpg files in the CAM directory
+input/HYUNDAI/images/
+
