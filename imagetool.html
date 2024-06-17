@@ -130,19 +130,19 @@
         </div>
     </div>
     <div class="image-container" id="imageContainer">
-        <div class="image-wrapper" id="wrapperFrontLeft">
-            <img id="imgFrontLeft" src="/image/CAM_FRONT_LEFT/000001.jpg" alt="CAM_FRONT_LEFT" data-scale="1">
-            <div class="zoom-level" id="zoomFrontLeft">Zoom Level: 100%</div>
-        </div>
-        <div class="image-wrapper" id="wrapperFront">
-            <img id="imgFront" src="/image/CAM_FRONT/000001.jpg" alt="CAM_FRONT" data-scale="1">
-            <div class="zoom-level" id="zoomFront">Zoom Level: 100%</div>
-        </div>
-        <div class="image-wrapper" id="wrapperFrontRight">
-            <img id="imgFrontRight" src="/image/CAM_FRONT_RIGHT/000001.jpg" alt="CAM_FRONT_RIGHT" data-scale="1">
-            <div class="zoom-level" id="zoomFrontRight">Zoom Level: 100%</div>
-        </div>
+    <div class="image-wrapper" id="wrapperFrontLeft">
+        <img id="imgFrontLeft" src="CAM_FRONT_LEFT/000001.jpg" alt="CAM_FRONT_LEFT" data-scale="1">
+        <div class="zoom-level" id="zoomFrontLeft">Zoom Level: 100%</div>
     </div>
+    <div class="image-wrapper" id="wrapperFront">
+        <img id="imgFront" src="CAM_FRONT/000001.jpg" alt="CAM_FRONT" data-scale="1">
+        <div class="zoom-level" id="zoomFront">Zoom Level: 100%</div>
+    </div>
+    <div class="image-wrapper" id="wrapperFrontRight">
+        <img id="imgFrontRight" src="CAM_FRONT_RIGHT/000001.jpg" alt="CAM_FRONT_RIGHT" data-scale="1">
+        <div class="zoom-level" id="zoomFrontRight">Zoom Level: 100%</div>
+    </div>
+</div>
 
     <script>
         let currentImageNumber = 1;
@@ -176,7 +176,7 @@
 
             paths.forEach(item => {
                 const imgElement = document.getElementById(item.id);
-                imgElement.src = `/image/${item.path}/${imageNumber}.jpg`;
+                imgElement.src = `${item.path}/${imageNumber}.jpg`;
                 imgElement.onload = () => {
                     imgElement.style.transform = 'scale(1)';
                     imgElement.style.left = '0';
@@ -362,6 +362,7 @@
         addEventListeners();
         fetchImageCount();
         loadImages(currentImageNumber.toString().padStart(6, '0'));
+
     </script>
 </body>
 </html>
